@@ -1,20 +1,172 @@
 # Reproducible Research: Peer Assessment 1
+<br><br>
 
+## Pre-Requisites
+
+<br>
+
+The following packages are required:
+
+* data.tables
+* xtable
+
+the following R version was used to perform these calculations:
+```{r, results='asis'}
+xt <- version
+#output results which include mean and median
+print(xt, type='html')
+```
 
 ## Loading and preprocessing the data
 
+### Sources
+
+<br>
+
+The data for this assignment can be downloaded from the course web
+site:
+
+* Dataset: [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip) [52K]
+
+The variables included in this dataset are:
+
+* **steps**: Number of steps taking in a 5-minute interval (missing
+    values are coded as `NA`)
+* **date**: The date on which the measurement was taken in YYYY-MM-DD
+    format
+* **interval**: Identifier for the 5-minute interval in which
+    measurement was taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
+### Preparation
+
+The dataset used to perform this analysis was downloaded from source on 
+
+Steps to download and prepare the file are as follows:
+
+1. Create a temp. file name (eg tempfile())
+2. Use download.file() to fetch the file into the temp. file
+3. Use unz() to extract the target file from temp. file
+4. Remove the temp file via unlink()
+
+no further preparation is immediately performed, since the some output requires analysis of NA values.
+
+The data used to prepare this document was downloaded on `r date()`
+
+```{r}
+  temp <- tempfile()
+  download.file("http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip",temp)
+  data <- read.csv(unz(temp, "activity.csv"), header=T)
+  unlink(temp)
+```
 
 
 ## What is mean total number of steps taken per day?
 
+For this part of the assignment,missing values in the dataset can be ignored.
+histogram will igore `NA` values so no need to remove them, outputs are the same.
 
+### Make a histogram of the total number of steps taken each day
+
+First step here is to aggregate total steps for each day in the data set. We will use the a data table to speed up this process. In this case, we remove `NA` values from the sum.
+
+```{r}
+library(data.table)
+dt<-data.table(data)
+dt.agg <- dt[, sum(steps, na.rm=T), by=date]
+hist(dt.agg$V1 , main="Histogram of Total Number of Steps /Day")
+```
+<br>
+
+2. Calculate and report the **mean** and **median** total number of steps taken per day
+<br>
+
+```{r, results='asis'}
+library(xtable)
+# Transpose summary table to a format xtable can use
+dt.sum <- summary(dt.agg$V1)
+dt.t <- t(t(dt.sum))
+xt <- xtable(dt.t)
+#output results which include mean and median
+print(xt, type='html')
+
+```
+<br>
 
 ## What is the average daily activity pattern?
 
 
+1. Make a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r}
+#get rid of NA values for mean calcs
+d<-na.omit(dt)
+dt.ave <- d[, mean(steps, na.rm=T), by=interval]
+setnames(dt.ave,c('interval','steps'))
+plot(dt.ave$interval,dt.ave$steps, type="l")
+```
+
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r, results='asis'}
+maxInterval <- dt.ave[dt.ave$steps==max(dt.ave$steps)]
+xt <- xtable(maxInterval)
+#output results which include mean and median
+print(xt, type='html')
+```
+<br>
+
+Which indicates, the maximum interval is **`r  maxInterval[[1]]`** with an average of **`r  maxInterval[[2]]`** steps 
 
 ## Imputing missing values
 
+### Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with `NA`s)
+
+using the summary command, we see there are **`r paste(summary(data$steps)[7])`** `NA` values.
+
+```{r}
+summary(data)
+```
+
+### Devise a strategy for filling in all of the missing values in the dataset. 
+
+Conventional Imputation typically uses multiple methods to substitutes estimated values for missing values
+
+* Replacement with means
+* Regression imputation (replace with conditional means)
+
+The problem is that these methods 
+
+* Often leads to biased parameter estimates (e.g., variances)
+* Usually leads to standard error estimates that arebiased downward
+  * Treats imputed data as real data, ignores inherent uncertainty in imputed values.
+
+However, given that in this case the strategy does not need to be sophisticated. I have elected to replace all `NA` values with the mean value for that 5-minute interval. The dataset follows.
+
+### Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+The new dataset called `dt.impute` is created as follows:
+
+1. Split the data set into two components, one with and one without `NA` values (`dt.noNA` and `dt.na` respectively)
+2. merge the `dt.na` data set with the `dt.avg` set above, to get the average steps for the intervals in question
+3. create a new dataset that replaces the NA values with the matched average step values
+4. rbind the dt.noNA with the new dt.na data frame to create a complete table with no `NA` values
+
+```{r}
+dt.noNA <- data[!is.na(data$steps),]
+dt.na <- data[is.na(data$steps),]
+dt.m <- merge(x=dt.na, y=dt.ave, by='interval')
+dt.impute <- rbind(dt.noNA, data.table(interval=dt.m$interval, steps=dt.m$steps.y, date=dt.m$date), use.names=T)
+summary(dt.impute)
+```
+
+### Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day.
+
+```{r}
+dt.aggImpute <- dt.impute[, sum(steps, na.rm=T), by=date]
+hist(dt.aggImpute$V1 , main="Histogram of Total Number of Steps /Day")
+```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
