@@ -9,6 +9,7 @@ The following packages are required:
 
 * data.tables
 * xtable
+* ggplot2
 
 the following R version was used to perform these calculations:
 ```{r, results='asis'}
@@ -168,5 +169,50 @@ dt.aggImpute <- dt.impute[, sum(steps, na.rm=T), by=date]
 hist(dt.aggImpute$V1 , main="Histogram of Total Number of Steps /Day")
 ```
 
+```{r, results="asis"}
+dt.sum <- summary(dt.aggImpute$V1)
+dt.t2 <- t(t(dt.sum))
+xt <- xtable(dt.t2)
+#output results which include mean and median
+print(xt, type='html')
+
+```
+
+We can see the median in the imputed data increases from 10,400 to 10,770. 
+The mean has also increased from 9,354 in the original dataset to 10,400 in the imputed data set.
+interestingly, the mean = median in the imputed dataset which is not the case in the original dataset.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+For this section, we'll use the dataset with the filled-in missing values. First we begin by converting the data column, currently a factor, to date format.
+
+```{r}
+dt.impute$date<- as.Date(dt.impute$date, format = "%Y-%m-%d")
+#now we use the weekday function to add day
+dt.impute[, day := weekdays(date)][,isWeekend:=day %in% c('Saturday','Sunday')][,dayType :=factor(isWeekend,levels=c(F,T),labels=c('Weekday','Weekend'))]
+#consolidate total steps
+x <- dt.impute[,mean(steps), by=list(interval, dayType)]
+setnames(x, c('interval','dayType','steps'))
+
+library(ggplot2)
+p <- ggplot(x, aes(interval, steps)) + geom_line()
+p+facet_grid(dayType~.)
+
+##show summary of two datasets
+
+we<-x[x$dayType=='Weekend']
+wd<-x[x$dayType=='Weekday']
+
+#Weekday activity
+#----------------
+summary(wd)
+hist(we$steps, main="histogram of weekday steps", xlab='steps')
+
+#Weekend activity
+#----------------
+summary(we)
+hist(wd$steps, main="histogram of weekend steps", xlab='steps')
+
+```
+
+Weekend activity does appear to be higher than weekday activity, evidenced by higher mean and median values. Weekday activity has a higher maximum activity level, spiking around interval 800-100, but flattens out quite steeply.
