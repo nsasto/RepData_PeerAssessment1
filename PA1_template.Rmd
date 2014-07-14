@@ -9,7 +9,7 @@ The following packages are required:
 
 * data.tables
 * xtable
-* ggplot2
+* lattice
 
 the following R version was used to perform these calculations:
 ```{r, results='asis'}
@@ -51,7 +51,7 @@ Steps to download and prepare the file are as follows:
 3. Use unz() to extract the target file from temp. file
 4. Remove the temp file via unlink()
 
-no further preparation is immediately performed, since the some output requires analysis of NA values.
+no further preparation is immediately performed, since the some output requires analysis of `NA` values.
 
 The data used to prepare this document was downloaded on `r date()`
 
@@ -76,7 +76,7 @@ First step here is to aggregate total steps for each day in the data set. We wil
 library(data.table)
 dt<-data.table(data)
 dt.agg <- dt[, sum(steps, na.rm=T), by=date]
-hist(dt.agg$V1 , main="Histogram of Total Number of Steps /Day")
+hist(dt.agg$V1 , main="Histogram of Total Number of Steps /Day", xlab="steps")
 ```
 <br>
 
@@ -98,7 +98,7 @@ print(xt, type='html')
 ## What is the average daily activity pattern?
 
 
-1. Make a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+### Make a time series plot (i.e. `type = "l"`) of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
 
 ```{r}
 #get rid of NA values for mean calcs
@@ -108,7 +108,7 @@ setnames(dt.ave,c('interval','steps'))
 plot(dt.ave$interval,dt.ave$steps, type="l")
 ```
 
-2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+### Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
 ```{r, results='asis'}
 maxInterval <- dt.ave[dt.ave$steps==max(dt.ave$steps)]
@@ -151,7 +151,7 @@ The new dataset called `dt.impute` is created as follows:
 
 1. Split the data set into two components, one with and one without `NA` values (`dt.noNA` and `dt.na` respectively)
 2. merge the `dt.na` data set with the `dt.avg` set above, to get the average steps for the intervals in question
-3. create a new dataset that replaces the NA values with the matched average step values
+3. create a new dataset that replaces the `NA` values with the matched average step values
 4. rbind the dt.noNA with the new dt.na data frame to create a complete table with no `NA` values
 
 ```{r}
@@ -184,7 +184,7 @@ interestingly, the mean = median in the imputed dataset which is not the case in
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-For this section, we'll use the dataset with the filled-in missing values. First we begin by converting the data column, currently a factor, to date format.
+For this section, we'll use the dataset with the filled-in missing values. First we begin by converting the data column, currently a factor, to date format. In addition, we use the weekday function to create a Weekday/Weekend factor column in order to differentiate the data between the two.
 
 ```{r}
 dt.impute$date<- as.Date(dt.impute$date, format = "%Y-%m-%d")
@@ -194,9 +194,9 @@ dt.impute[, day := weekdays(date)][,isWeekend:=day %in% c('Saturday','Sunday')][
 x <- dt.impute[,mean(steps), by=list(interval, dayType)]
 setnames(x, c('interval','dayType','steps'))
 
-library(ggplot2)
-p <- ggplot(x, aes(interval, steps)) + geom_line()
-p+facet_grid(dayType~.)
+library(lattice)
+xyplot(x$steps ~ x$interval |
+         x$dayType, layout = c(1, 2), type = "l", xlab = "Interval", ylab = "Number of steps")
 
 ##show summary of two datasets
 
@@ -206,13 +206,16 @@ wd<-x[x$dayType=='Weekday']
 #Weekday activity
 #----------------
 summary(wd)
-hist(we$steps, main="histogram of weekday steps", xlab='steps')
 
 #Weekend activity
 #----------------
 summary(we)
-hist(wd$steps, main="histogram of weekend steps", xlab='steps')
 
+#Comparison histograms
+par(mfrow=c(1,2))
+hist(wd$steps, main="histogram of weekend steps", xlab='steps')
+hist(we$steps, main="histogram of weekday steps", xlab='steps')
+par(mfrow=c(1,1))
 ```
 
-Weekend activity does appear to be higher than weekday activity, evidenced by higher mean and median values. Weekday activity has a higher maximum activity level, spiking around interval 800-100, but flattens out quite steeply.
+Weekend activity does appear to be higher than weekday activity, evidenced by higher mean and median values. Weekday activity appears to have higher occurences of mid-range activity, whilst weekend activity appears to be have higher frequency on both tail sides of the distribution (i.e highly active, or not very little activity)
